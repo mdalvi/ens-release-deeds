@@ -7,8 +7,17 @@ Complete toolkit to release your ENS deeds from the old registrar and recover yo
 ## 📦 What's Included
 
 - [check_deeds.py](check_deeds.py) - View-only script to check your deed status (no private key needed)
-- [release_ens_deeds.py](release_ens_deeds.py) - Full automated release tool (requires private key)
+- [release_ens_deeds.py](release_ens_deeds.py) - Full automated release tool (supports private key or mnemonic seed phrase)
 - [requirements.txt](requirements.txt) - Python dependencies
+
+## ✨ Features
+
+- 🔑 **Flexible Authentication**: Use either raw private key or BIP39 mnemonic seed phrase (12-24 words)
+- ✅ **Automatic Validation**: Built-in validation for mnemonics, word count, and BIP39 checksum
+- 🔒 **Security First**: Address verification before proceeding, sensitive data cleared from memory
+- 📊 **Batch Processing**: Release multiple deeds in one session
+- 🎯 **Smart Detection**: Automatically finds all your registered names
+- 💰 **Gas Optimization**: Uses efficient gas settings for minimal transaction costs
 
 ## 🚀 Quick Start
 
@@ -91,7 +100,7 @@ python release_ens_deeds.py
 
 You'll need:
 - Ethereum RPC URL (see RPC Configuration section below)
-- Your private key
+- Your wallet credentials (private key OR mnemonic seed phrase)
 - ETH for gas fees (typically 0.00001-0.00003 ETH per deed at current gas prices)
 
 The tool will:
@@ -226,6 +235,37 @@ To use a different RPC:
 - Edit the `PUBLIC_RPC` variable in [check_deeds.py](check_deeds.py:22)
 - Or provide it when prompted by [release_ens_deeds.py](release_ens_deeds.py)
 
+## 🔑 Wallet Input Methods
+
+The release tool ([release_ens_deeds.py](release_ens_deeds.py)) supports two ways to provide your wallet credentials:
+
+### Option 1: Raw Private Key
+- Standard hex format (64 characters)
+- Example: `0x1234567890abcdef...`
+- Works with all Ethereum wallets
+
+### Option 2: Mnemonic Seed Phrase (NEW)
+- BIP39 standard mnemonic phrases
+- Supports 12, 15, 18, 21, or 24 words
+- Uses standard BIP44 Ethereum derivation path: `m/44'/60'/0'/0/0`
+- Compatible with MetaMask, Ledger, Trezor, and other standard wallets
+
+**Features:**
+- ✅ Automatic validation of word count and BIP39 wordlist
+- ✅ Shows derived address for verification before proceeding
+- ✅ Requires explicit confirmation ("yes") to continue
+- ✅ Handles whitespace normalization
+- ✅ Clear error messages for invalid input
+
+**Security:**
+- Both methods clear sensitive data from memory after use
+- No credentials are stored or logged
+- All operations run locally on your machine
+
+**View-Only Mode:**
+- Press Enter without entering credentials to run in view-only mode
+- View-only mode lets you check deed status without wallet access
+
 ## 📋 Understanding Deed Release
 
 ### What is a Deed?
@@ -249,10 +289,11 @@ The migration period to the new permanent registrar ended on **May 4, 2020**. If
 ## 🔐 Security Notes
 
 **IMPORTANT:**
-- ⚠️ Never share your private key
+- ⚠️ Never share your private key or mnemonic seed phrase
 - ⚠️ Always verify contract addresses
 - ⚠️ Scripts run locally on your machine
 - ⚠️ Double-check transaction details before signing
+- ⚠️ Verify the derived address when using mnemonic phrases
 
 **Contract Address Verification:**
 - Old Registrar: `0x6090A6e47849629b7245Dfa1Ca21D94cd15878Ef`
@@ -305,6 +346,10 @@ Connecting to Ethereum...
 ```bash
 $ python release_ens_deeds.py
 
+================================================================================
+ENS Old Registrar Deed Release Tool
+================================================================================
+
 Please configure your connection:
 
 1. Enter your Ethereum RPC URL
@@ -315,10 +360,30 @@ Please configure your connection:
 
    RPC URL: https://mainnet.infura.io/v3/YOUR_KEY
 
-2. Enter your private key (optional, leave empty for view-only mode)
-   ⚠️  WARNING: Never share your private key!
+================================================================================
+Wallet Input Method
+================================================================================
 
-   Private Key (or press Enter to skip): 0x...
+Please select how you want to provide your wallet credentials:
+
+  1. Private Key (hex format, 64 characters)
+  2. Mnemonic Seed Phrase (12-24 words)
+
+Enter your choice (1 or 2): 2
+
+2. Enter your mnemonic seed phrase
+   Supported: 12, 15, 18, 21, or 24 words
+   ⚠️  WARNING: Never share your seed phrase!
+
+   Mnemonic (or press Enter to skip): test test test test test test test test test test test junk
+
+   Derivation path: m/44'/60'/0'/0/0
+   Deriving address...
+
+   Derived address: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+
+   ⚠️  Please verify this is the correct address!
+   Continue with this address? (yes/no): yes
 
 ✓ Connected to Ethereum node
 ✓ Wallet loaded: 0xYourAddress...
@@ -387,6 +452,19 @@ If you see rate limit errors with public RPC:
 - Add delays between requests
 - Use the pre-computed deed mappings feature to avoid blockchain scans
 
+### "Invalid mnemonic phrase"
+- Verify you have the correct number of words (12, 15, 18, 21, or 24)
+- Check for typos - all words must be from the BIP39 wordlist
+- Make sure you're using the recovery phrase, not a password
+- Try copying and pasting if typing manually causes errors
+- Some wallets use language-specific wordlists (tool supports English by default)
+
+### "Derived address doesn't match my wallet"
+- Your wallet may use a non-standard derivation path
+- You may be using a different account index (not the first account)
+- Use option 1 (raw private key) instead of mnemonic
+- Or export your private key from your wallet and use that
+
 ## 📚 Additional Resources
 
 - **ENS Documentation:** https://docs.ens.domains/
@@ -416,6 +494,15 @@ A: Gas fees vary with network conditions. As of January 2026, typical costs are:
 - **Normal conditions:** 0.00001-0.00003 ETH per deed release (300,000 gas at ~0.04-0.1 Gwei)
 - **High congestion:** Up to 0.0001-0.0005 ETH per transaction
 - Check real-time prices at https://etherscan.io/gastracker
+
+**Q: Can I use my MetaMask seed phrase?**
+A: Yes! The tool supports BIP39 mnemonic seed phrases (12-24 words). When you select option 2, enter your seed phrase and the tool will derive your wallet address using the standard Ethereum path (m/44'/60'/0'/0/0). You'll see the derived address and can verify it matches your wallet before proceeding.
+
+**Q: Which wallet derivation path is used for mnemonics?**
+A: The tool uses the standard BIP44 Ethereum derivation path: `m/44'/60'/0'/0/0`. This is the default path used by MetaMask, Ledger, Trezor, and most Ethereum wallets for the first account.
+
+**Q: What if the derived address doesn't match my wallet?**
+A: If the derived address doesn't match, you can cancel by typing "no" at the confirmation prompt. This may happen if your wallet uses a non-standard derivation path or if you're using a different account index. In that case, use option 1 (raw private key) instead.
 
 ## ⚖️ License & Disclaimer
 

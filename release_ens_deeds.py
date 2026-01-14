@@ -602,6 +602,118 @@ class ENSDeedReleaser:
         return successful_releases
 
 
+def get_input_method():
+    """
+    Display menu for selecting wallet input method
+    Returns: 'private_key' or 'mnemonic'
+    """
+    print("\n" + "=" * 80)
+    print("Wallet Input Method")
+    print("=" * 80)
+    print("\nPlease select how you want to provide your wallet credentials:")
+    print()
+    print("  1. Private Key (hex format, 64 characters)")
+    print("  2. Mnemonic Seed Phrase (12-24 words)")
+    print()
+
+    while True:
+        choice = input("Enter your choice (1 or 2): ").strip()
+        if choice == '1':
+            return 'private_key'
+        elif choice == '2':
+            return 'mnemonic'
+        else:
+            print("Invalid choice. Please enter 1 or 2.")
+
+
+def get_mnemonic_input():
+    """
+    Prompt user for mnemonic phrase and validate it
+    Returns: validated mnemonic string or None
+    """
+    print("\n2. Enter your mnemonic seed phrase")
+    print("   Supported: 12, 15, 18, 21, or 24 words")
+    print("   ⚠️  WARNING: Never share your seed phrase!")
+    print()
+
+    mnemonic = input("   Mnemonic (e.g. chocolate airplane rambo ....) (or press Enter to skip): ").strip()
+
+    if not mnemonic:
+        return None
+
+    # Normalize whitespace (handle multiple spaces, tabs, newlines)
+    mnemonic = ' '.join(mnemonic.split())
+
+    # Validate word count
+    words = mnemonic.split()
+    word_count = len(words)
+
+    if word_count not in [12, 15, 18, 21, 24]:
+        print(f"\n❌ Error: Invalid word count ({word_count} words)")
+        print(f"   Mnemonic must be 12, 15, 18, 21, or 24 words")
+        return None
+
+    # Validate mnemonic using eth_account's built-in validation
+    try:
+        from eth_account.hdaccount import seed_from_mnemonic
+        # This will raise ValueError if invalid
+        _ = seed_from_mnemonic(mnemonic, "")
+        return mnemonic
+    except Exception as e:
+        print(f"\n❌ Error: Invalid mnemonic phrase")
+        print(f"   {str(e)}")
+        print(f"\n   Common issues:")
+        print(f"   - Incorrect word from BIP39 wordlist")
+        print(f"   - Invalid checksum")
+        print(f"   - Typos in words")
+        return None
+
+
+def create_account_from_mnemonic(mnemonic):
+    """
+    Create account from mnemonic with fixed derivation path
+    Shows derived address and asks for confirmation
+
+    Args:
+        mnemonic: Validated mnemonic phrase
+
+    Returns:
+        Account object or None if user cancels
+    """
+    from eth_account import Account
+    from eth_account.hdaccount import ETHEREUM_DEFAULT_PATH
+
+    # Enable HD wallet features
+    Account.enable_unaudited_hdwallet_features()
+
+    # Use fixed BIP44 Ethereum path: m/44'/60'/0'/0/0
+    derivation_path = ETHEREUM_DEFAULT_PATH
+
+    print(f"\n   Derivation path: {derivation_path}")
+    print(f"   Deriving address...")
+
+    try:
+        # Derive account (no passphrase)
+        account = Account.from_mnemonic(mnemonic, passphrase="", account_path=derivation_path)
+
+        # Display derived address
+        print(f"\n   Derived address: {account.address}")
+        print(f"\n   ⚠️  Please verify this is the correct address!")
+
+        # Ask for confirmation
+        confirmation = input("   Continue with this address? (yes/no): ").strip().lower()
+
+        if confirmation == 'yes':
+            return account
+        else:
+            print("\n   Cancelled by user")
+            return None
+
+    except Exception as e:
+        print(f"\n❌ Error deriving account: {e}")
+        return None
+
+
 def main():
     """Main function"""
     print("=" * 80)
@@ -629,12 +741,31 @@ def main():
     if not rpc_url:
         print("❌ RPC URL is required")
         return
-    
-    # Private key (optional for view-only)
-    print("\n2. Enter your private key (optional, leave empty for view-only mode)")
-    print("   ⚠️  WARNING: Never share your private key!")
-    private_key = input("\n   Private Key (or press Enter to skip): ").strip()
-    
+
+    # Get wallet credentials via selected method
+    input_method = get_input_method()
+
+    account = None
+    private_key = None
+
+    if input_method == 'private_key':
+        print("\n2. Enter your private key (optional, leave empty for view-only mode)")
+        print("   Format: 0x... (hex string, 64 characters)")
+        print("   ⚠️  WARNING: Never share your private key!")
+        private_key = input("\n   Private Key (or press Enter to skip): ").strip()
+
+    elif input_method == 'mnemonic':
+        mnemonic = get_mnemonic_input()
+
+        if mnemonic:
+            account = create_account_from_mnemonic(mnemonic)
+            if account:
+                # Extract private key from account for ENSDeedReleaser
+                private_key = account.key.hex()
+                # Clear sensitive data from memory
+                del mnemonic
+                del account
+
     # Initialize
     try:
         releaser = ENSDeedReleaser(rpc_url, private_key if private_key else None)
